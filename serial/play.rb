@@ -70,11 +70,16 @@ while true
       diff = Time.now - start
       printf("\r%02d:%02d.%03d #{readed}/#{fsize} #{rsize} #{count} play back.\n", diff/60, diff%60, (diff * 1000)%1000)
       fp.close
+
+      # loop
       count=0
       start = last = Time.now
       readed = 0
       fp = File.open(fname, "rb")
       sp.write([1,0].pack("C*"))
+
+      # break
+      #break
     else
       data = fp.read(rsize)
       readed += data.size

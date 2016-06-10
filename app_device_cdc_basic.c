@@ -96,7 +96,7 @@ void interrupt_func(void)
     INTCONbits.TMR0IF = 0;
     if (gcounter > 8000) {
       gcounter = 0;
-      PORTCbits.RC7 = !PORTCbits.RC7;
+      //PORTCbits.RC6 = !PORTCbits.RC6;
     //  PORTA = 0;
     //  PORTB = 0;
     //  PORTC = 0;
@@ -247,7 +247,7 @@ void APP_DeviceCDCBasicDemoInitialize()
 int debug_flag = 0;
 void APP_DeviceCDCBasicDemoTasks()
 {
-    PORTCbits.RC7 = playing;
+    PORTCbits.RC6 = playing;
     /* If the user has pressed the button associated with this demo, then we
      * are going to send a "Button Pressed" message to the terminal.
      */
