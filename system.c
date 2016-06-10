@@ -71,7 +71,6 @@ void SYSTEM_Initialize( SYSTEM_STATE state )
     switch(state)
     {
         case SYSTEM_STATE_USB_START:
-            LED_Enable(LED_USB_DEVICE_STATE);
             BUTTON_Enable(BUTTON_DEVICE_CDC_BASIC_DEMO);
             break;
             

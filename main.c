@@ -25,7 +25,6 @@
 #include "system_config.h"
 
 #include "app_device_cdc_basic.h"
-#include "app_led_usb_status.h"
 
 #include "usb.h"
 #include "usb_device.h"
@@ -61,7 +60,7 @@ MAIN_RETURN main(void)
 
     while(1)
     {
-        SYSTEM_Tasks();
+        //SYSTEM_Tasks();
 
         #if defined(USB_POLLING)
             // Interrupt or polling method.  If using polling, must call
@@ -100,7 +99,7 @@ MAIN_RETURN main(void)
         }
 
         //Application specific tasks
-        APP_DeviceCDCBasicDemoTasks();
+        //APP_DeviceCDCBasicDemoTasks();
         //if (debug_flg) {
         //  debug_flg = 0;
         //  if (WaitToReadySerial()) {
@@ -144,12 +143,10 @@ bool USER_USB_CALLBACK_EVENT_HANDLER(USB_EVENT event, void *pdata, uint16_t size
         case EVENT_SOF:
             /* We are using the SOF as a timer to time the LED indicator.  Call
              * the LED update function here. */
-            APP_LEDUpdateUSBStatus();
             break;
 
         case EVENT_SUSPEND:
             /* Update the LED status for the suspend event. */
-            APP_LEDUpdateUSBStatus();
 
             //Call the hardware platform specific handler for suspend events for
             //possible further action (like optionally going reconfiguring the application
@@ -162,7 +159,6 @@ bool USER_USB_CALLBACK_EVENT_HANDLER(USB_EVENT event, void *pdata, uint16_t size
 
         case EVENT_RESUME:
             /* Update the LED status for the resume event. */
-            APP_LEDUpdateUSBStatus();
 
             //Call the hardware platform specific resume from suspend handler (ex: to
             //restore I/O pins to higher power states if they were changed during the 

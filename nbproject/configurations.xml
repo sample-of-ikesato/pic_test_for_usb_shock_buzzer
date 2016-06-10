@@ -13,14 +13,12 @@
                    displayName="Source Files"
                    projectFiles="true">
       <itemPath>app_device_cdc_basic.c</itemPath>
-      <itemPath>app_led_usb_status.c</itemPath>
       <itemPath>main.c</itemPath>
       <itemPath>usb_descriptors.c</itemPath>
       <itemPath>usb_device_cdc.c</itemPath>
       <itemPath>buttons.c</itemPath>
       <itemPath>usb_device.c</itemPath>
       <itemPath>system.c</itemPath>
-      <itemPath>leds.c</itemPath>
       <itemPath>queue.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"

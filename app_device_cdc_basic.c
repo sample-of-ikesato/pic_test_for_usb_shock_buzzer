@@ -28,7 +28,6 @@
 #include <stddef.h>
 
 #include "usb.h"
-#include "app_led_usb_status.h"
 #include "app_device_cdc_basic.h"
 #include "usb_config.h"
 #include "queue.h"
