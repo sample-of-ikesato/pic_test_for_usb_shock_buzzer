@@ -60,7 +60,7 @@ MAIN_RETURN main(void)
 
     while(1)
     {
-        //SYSTEM_Tasks();
+        SYSTEM_Tasks();
 
         #if defined(USB_POLLING)
             // Interrupt or polling method.  If using polling, must call
@@ -99,7 +99,7 @@ MAIN_RETURN main(void)
         }
 
         //Application specific tasks
-        //APP_DeviceCDCBasicDemoTasks();
+        APP_DeviceCDCBasicDemoTasks();
         //if (debug_flg) {
         //  debug_flg = 0;
         //  if (WaitToReadySerial()) {
