@@ -19,7 +19,4 @@
  IN ANY CIRCUMSTANCES, BE LIABLE FOR SPECIAL, INCIDENTAL OR
  CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
  *******************************************************************/
-#include "buttons.h"
-
-#define BUTTON_DEVICE_CDC_BASIC_DEMO             BUTTON_S1
 

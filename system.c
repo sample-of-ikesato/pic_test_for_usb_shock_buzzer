@@ -71,19 +71,17 @@ void SYSTEM_Initialize( SYSTEM_STATE state )
     switch(state)
     {
         case SYSTEM_STATE_USB_START:
-            BUTTON_Enable(BUTTON_DEVICE_CDC_BASIC_DEMO);
             break;
-            
-        case SYSTEM_STATE_USB_SUSPEND: 
+
+        case SYSTEM_STATE_USB_SUSPEND:
             break;
-            
+
         case SYSTEM_STATE_USB_RESUME:
             break;
     }
 }
 
-			
-			
+
 extern void interrupt_func(void);
 
 #if defined(__XC8)
@@ -97,7 +95,7 @@ void interrupt SYS_InterruptHigh(void)
 #else
         void YourHighPriorityISRCode();
         void YourLowPriorityISRCode();
-        
+
 	//On PIC18 devices, addresses 0x00, 0x08, and 0x18 are used for
 	//the reset, high priority interrupt, and low priority interrupt
 	//vectors.  However, the current Microchip USB bootloader

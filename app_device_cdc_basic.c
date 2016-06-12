@@ -33,6 +33,7 @@
 #include "queue.h"
 #include "i2c.h"
 #include "mc24c64.h"
+#include "accel.h"
 
 
 #define _XTAL_FREQ (48000000)
@@ -87,6 +88,13 @@ int playing = 0;
 int waiting_data = 0;
 unsigned char debug_buffer[32]; // size needs bigger than queue_buffer
 int debug_buffer_size = 0;
+Accel accel_x;
+Accel accel_y;
+unsigned short led_x_timer = 0;
+unsigned short led_y_timer = 0;
+unsigned char debug_flag = 0;
+unsigned short debug_counter = 0;
+unsigned char calc_accel = 0;
 
 
 #define T0CNT (65536-375)
@@ -98,19 +106,10 @@ void interrupt_func(void)
     gcounter++;
     TMR0 = T0CNT;
     INTCONbits.TMR0IF = 0;
-    if (gcounter > 8000) {
+    if (gcounter > 8000/120) {
       gcounter = 0;
-      //PORTCbits.RC6 = !PORTCbits.RC6;
-    //  PORTA = 0;
-    //  PORTB = 0;
-    //  PORTC = 0;
-    //  CCPR1L  = 0x00;
-    //} else {
-    //  PORTA = 0xFFFF;
-    //  PORTB = 0xFFFF;
-    //  PORTC = 0xFFFF;
-    //  //CCPR1L  = 63;
-    //  CCPR1L  = 1;
+      debug_flag = 1;
+      calc_accel = 1;
     }
 
     if (playing) {
@@ -131,6 +130,55 @@ void interrupt_func(void)
       CCPR1L = 0;
       CCP1CONbits.DC1B = 0;
     }
+    if (led_x_timer > 0) led_x_timer--;
+    if (led_y_timer > 0) led_y_timer--;
+  }
+
+  if (INTCONbits.RABIF == 1) {
+    unsigned short now = TMR3;
+    //TMR3 = 0;
+    //PIR2bits.TMR3IF = 0;
+    INTCONbits.RABIF = 0;
+    debug_counter++;
+    accel_pin_state_changed(&accel_x, PORTBbits.RB5, now);
+    accel_pin_state_changed(&accel_y, PORTBbits.RB7, now);
+
+    // ADXL213
+    // 10k[ohm] の抵抗をつけた場合
+    //   T2 = 10*10**3 / (125*10**6) [s]
+    //      = 0.08 / 10**3 [s] = 0.08[ms]
+    //   1/T2 = 12.5[kHz]
+    //   256 の分解能とすると 12.5 * 256 = 3200[kHz] = 3.2[MHz]
+    //
+    // 42k[ohm] の抵抗をつけた場合
+    //   T2 = 42*10**3 / (125*10**6) [s]
+    //      = 0.336 / 10**3 [s] = 0.336[ms]
+    //   1/T2 = 2.976[kHz]
+    //   256 の分解能とすると 2.976 * 256 = 761.9[kHz] = 0.7[MHz]
+    //
+    // 125k[ohm] の抵抗をつけた場合
+    //   T2 = 125*10**3 / (125*10**6) [s]
+    //      = 1 / 10**3 [s] = 1[ms]
+    //   1/T2 = 1[kHz]
+    //   256 の分解能とすると 1 * 256 = 256[kHz]
+    //
+    // 126k[ohm] の抵抗をつけた場合
+    //   T2 = 126*10**3 / (125*10**6) [s]
+    //      = 1.008 / 10**3 [s] = 1.008[ms]
+    //   1/T2 = 0.992[kHz]
+    //   256 の分解能とすると 1 * 256 = 254[kHz]
+    //
+    // Timer は 48MHz/4 で prescaler 1:4 なので
+    // 1/(48*10**6/4/4) * x = 1/(256*10**3)
+    // x = (48*10**6/4/4) / (256*10**3)
+    //   = 3 * 10**3 / 256
+    //   = 11.719, 約12
+
+    // Timer は 48MHz/4 で prescaler 1:8 なので
+    // 1/(48*10**6/4/8) * x = 1/(256*10**3)
+    // x = (48*10**6/4/8) / (256*10**3)
+    //   = 1.5 * 10**3 / 256
+    //   = 11.719, 約12
   }
 }
 
@@ -184,9 +232,9 @@ void init(void)
   CCP1CONbits.CCP1M = 0b1100; // P1A、P1C をアクティブ High、P1B、P1D をアクティブ High
   CCP1CONbits.DC1B  = 0b11;   // デューティ サイクル値の最下位 2 ビット
   CCP1CONbits.P1M   = 0b00;   // シングル出力
-  PSTRCONbits.STRA = 1;
-  PSTRCONbits.STRB = 1;
-  PSTRCONbits.STRC = 1;
+  PSTRCONbits.STRA = 0;
+  PSTRCONbits.STRB = 0;
+  PSTRCONbits.STRC = 0;
   PSTRCONbits.STRD = 1;
   PSTRCONbits.STRSYNC = 1;
 
@@ -212,6 +260,31 @@ void init(void)
 
   // for i2c
   mc24c64_init();
+
+  // for ADXL213
+  TMR3 = 0;
+  T3CONbits.RD16 = 1;      // 16bit mode
+  //T3CONbits.T3CKPS = 0b10; // prescaler 1:4
+  //T3CONbits.T3CKPS = 0b11; // prescaler 1:8
+  //T3CONbits.T3CKPS = 0b01; // prescaler 1:2
+  T3CONbits.T3CKPS = 0b00; // prescaler 1:1
+  T3CONbits.T3CCP1 = 1;    // use Timer3 clock source
+  T3CONbits.TMR3CS = 0;    // internal clock
+  //T3CONbits.T3SYNC = 1;
+  T3CONbits.TMR3ON = 1;    // Timer ON
+  PIR2bits.TMR3IF = 0;     // clear overflow
+  //PIE2bits.TMR3IE = 1;     // enable interrupt
+
+  // for ADXL213 interrupt pins
+  INTCONbits.RABIF = 1;
+  INTCONbits.RABIE = 1;
+  INTCON2bits.RABIP = 1;   // high level interrupt
+  IOCBbits.IOCB5 = 1;
+  IOCBbits.IOCB7 = 1;
+
+  // accel
+  accel_init(&accel_x);
+  accel_init(&accel_y);
 }
 
 /*********************************************************************
@@ -252,14 +325,13 @@ void APP_DeviceCDCBasicDemoInitialize()
 * Output: None
 *
 ********************************************************************/
-int debug_flag = 0;
 void APP_DeviceCDCBasicDemoTasks()
 {
     PORTCbits.RC6 = playing;
     /* If the user has pressed the button associated with this demo, then we
      * are going to send a "Button Pressed" message to the terminal.
      */
-    if(BUTTON_IsPressed(BUTTON_DEVICE_CDC_BASIC_DEMO) == true)
+    if(PORTAbits.RA3 == 0) // button down
     {
         /* Make sure that we only send the message once per button press and
          * not continuously as the button is held.
@@ -382,7 +454,6 @@ void APP_DeviceCDCBasicDemoTasks()
           break;
         }
       }
-
       if (playing & waiting_data == 0) {
         if ((size_t)queue_size(&queue) <= (sizeof(queue_buffer)*3/4)) {
           waiting_data = 1;
@@ -392,7 +463,35 @@ void APP_DeviceCDCBasicDemoTasks()
           putUSBUSART(writeBuffer, 3);
         }
       }
+
+      {
+        if (debug_flag) {
+          debug_flag = 0;
+          writeBuffer[0] = 4;
+          writeBuffer[1] = 9;
+          *((unsigned short *)(&writeBuffer[2])) = accel_x.on;
+          *((unsigned short *)(&writeBuffer[4])) = accel_x.off;
+          *((unsigned short *)(&writeBuffer[6])) = accel_y.on;
+          *((unsigned short *)(&writeBuffer[8])) = accel_y.off;
+          writeBuffer[10] = debug_counter;
+          putUSBUSART(writeBuffer, writeBuffer[1]+2);
+        }
+      }
     }
 
     CDCTxService();
+
+    if (calc_accel) {
+      calc_accel = 0;
+      accel_apply_filter(&accel_x);
+      accel_apply_filter(&accel_y);
+      #define THRESHOLD 0.05
+      if (accel_x.value < (unsigned short)(4585*(1.0-THRESHOLD)) || accel_x.value > (unsigned short)(4585*(1.0+THRESHOLD)))
+        led_x_timer = (unsigned short)(0.5*8000); // 0.5[s]
+      if (accel_y.value < (unsigned short)(4585*(1.0-THRESHOLD)) || accel_y.value > (unsigned short)(4585*(1.0+THRESHOLD)))
+        led_y_timer = (unsigned short)(0.5*8000); // 0.5[s]
+
+      PORTCbits.RC1 = (led_x_timer > 0 ? 1 : 0);
+      PORTCbits.RC4 = (led_y_timer > 0 ? 1 : 0);
+    }
 }

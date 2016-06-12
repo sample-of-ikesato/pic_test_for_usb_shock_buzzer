@@ -16,12 +16,12 @@
       <itemPath>main.c</itemPath>
       <itemPath>usb_descriptors.c</itemPath>
       <itemPath>usb_device_cdc.c</itemPath>
-      <itemPath>buttons.c</itemPath>
       <itemPath>usb_device.c</itemPath>
       <itemPath>system.c</itemPath>
       <itemPath>queue.c</itemPath>
       <itemPath>i2c.c</itemPath>
       <itemPath>mc24c64.c</itemPath>
+      <itemPath>accel.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
