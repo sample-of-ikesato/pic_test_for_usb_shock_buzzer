@@ -31,6 +31,8 @@
 #include "app_device_cdc_basic.h"
 #include "usb_config.h"
 #include "queue.h"
+#include "i2c.h"
+#include "mc24c64.h"
 
 
 #define _XTAL_FREQ (48000000)
@@ -90,6 +92,8 @@ int debug_buffer_size = 0;
 #define T0CNT (65536-375)
 void interrupt_func(void)
 {
+  i2c_interrupt();
+
   if (INTCONbits.TMR0IF == 1) {
     gcounter++;
     TMR0 = T0CNT;
@@ -138,6 +142,7 @@ void init(void)
   TRISA = 0b00001000;
   TRISB = 0b11110000;
   TRISC = 0b00101000;
+  INTCON2bits.RABPU = 0; // enable pull-up
   WPUB  = 0b11110000;
   PORTA = 0;
   PORTB = 0;
@@ -204,6 +209,9 @@ void init(void)
 
   // queue
   queue_init(&queue, queue_buffer, sizeof(queue_buffer));
+
+  // for i2c
+  mc24c64_init();
 }
 
 /*********************************************************************
@@ -316,6 +324,61 @@ void APP_DeviceCDCBasicDemoTasks()
           if (readBuffer[1] == 0)
             playing = 0;
           waiting_data = 0;
+          break;
+
+        case 0x10: // write to EEPROM
+          //{
+          //  unsigned char size = readBuffer[1];
+          //  debug_flag2 = !debug_flag2;
+          //  PORTCbits.RC1 = debug_flag2;
+          //  writeBuffer[0] = 0x90;
+          //  writeBuffer[1] = 4;
+          //  writeBuffer[2] = numBytesRead;
+          //  writeBuffer[3] = readBuffer[1];
+          //  writeBuffer[4] = readBuffer[2];
+          //  writeBuffer[5] = readBuffer[3];
+          //  writeBuffer[1] = 4+size;
+          //  for (unsigned char i = 0; i<size; i++) {
+          //    writeBuffer[i+6] = readBuffer[4 + i];
+          //  }
+          //  if (WaitToReadySerial())
+          //    putUSBUSART(writeBuffer, writeBuffer[1]+2);
+          //  WaitToReadySerial();
+          //}
+          {
+            unsigned char size = readBuffer[1];
+            i2c_start(0x50, 0);
+            // address in big-endian format
+            i2c_send(readBuffer[3]); // address MSB
+            i2c_send(readBuffer[2]); // address LSB
+            for (unsigned char i = 0; i<size; i++) {
+              i2c_send(readBuffer[4 + i]);
+            }
+            i2c_stop();
+            __delay_ms(10);
+        PORTCbits.RC1 = 1;
+          }
+          break;
+        case 0x11:
+          {
+            unsigned char size = readBuffer[1];
+            unsigned char data;
+            unsigned char i;
+            i2c_start(0x50, 0);
+            // address in big-endian format
+            i2c_send(readBuffer[3]); // address MSB
+            i2c_send(readBuffer[2]); // address LSB
+            i2c_start(0x50, 1);
+            for (i=0; i<size-1; i++) {
+              writeBuffer[i+2] = i2c_receive(ACK);
+            }
+            writeBuffer[i+2] = i2c_receive(NOACK);
+            i2c_stop();
+            __delay_ms(10);
+            writeBuffer[0] = 0x12;
+            writeBuffer[1] = size;
+            putUSBUSART(writeBuffer, writeBuffer[1]+2);
+          }
           break;
         }
       }
