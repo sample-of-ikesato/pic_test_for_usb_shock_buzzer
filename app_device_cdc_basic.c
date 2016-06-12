@@ -95,7 +95,7 @@ unsigned short led_y_timer = 0;
 unsigned char debug_flag = 0;
 unsigned short debug_counter = 0;
 unsigned char calc_accel = 0;
-
+unsigned short battery = 0;
 
 #define T0CNT (65536-375)
 void interrupt_func(void)
@@ -106,7 +106,8 @@ void interrupt_func(void)
     gcounter++;
     TMR0 = T0CNT;
     INTCONbits.TMR0IF = 0;
-    if (gcounter > 8000/120) {
+    //if (gcounter > 8000/120) {
+    if (gcounter > 8000) {
       gcounter = 0;
       debug_flag = 1;
       calc_accel = 1;
@@ -195,7 +196,20 @@ void init(void)
   PORTA = 0;
   PORTB = 0;
   PORTC = 0;
-  ANSELH = ANSEL = 0;
+
+  // ADC
+  REFCON0 = 0b10100000;  // bit4,5 FVR 01:1.014V 10:2.048V 11:4.096V
+  PIE1bits.ADIE = 0; // Disable ADC interrupt
+  ADCON0bits.CHS = 7; // AN7
+  ADCON1 = 0b1000;    // positive reference, PVCFG<2:3> -> 00:VDD 01:Vref+ 10:FVR
+                      // negative reference, NVcfg<0:1> -> 00:VSS 01:Vref-
+  ADCON2bits.ADFM = 1; // Right justified
+  ADCON2bits.ACQT = 0b101; // 12TAD
+  ADCON2bits.ADCS = 0b110; // FRC/64 => 107msec, FRC is 600kHz
+  ADCON0bits.ADON = 1;
+  ADCON0bits.GO_DONE = 1;
+  ANSELH = 0;
+  ANSEL = 0b10000000;
 
   // timer
   // USB Bootloader では 48MHz で動作
@@ -464,15 +478,22 @@ void APP_DeviceCDCBasicDemoTasks()
       }
 
       {
+        //if (debug_flag) {
+        //  debug_flag = 0;
+        //  writeBuffer[0] = 4;
+        //  writeBuffer[1] = 9;
+        //  *((unsigned short *)(&writeBuffer[2])) = accel_x.on;
+        //  *((unsigned short *)(&writeBuffer[4])) = accel_x.off;
+        //  *((unsigned short *)(&writeBuffer[6])) = accel_y.on;
+        //  *((unsigned short *)(&writeBuffer[8])) = accel_y.off;
+        //  writeBuffer[10] = debug_counter;
+        //  putUSBUSART(writeBuffer, writeBuffer[1]+2);
+        //}
         if (debug_flag) {
           debug_flag = 0;
-          writeBuffer[0] = 4;
-          writeBuffer[1] = 9;
-          *((unsigned short *)(&writeBuffer[2])) = accel_x.on;
-          *((unsigned short *)(&writeBuffer[4])) = accel_x.off;
-          *((unsigned short *)(&writeBuffer[6])) = accel_y.on;
-          *((unsigned short *)(&writeBuffer[8])) = accel_y.off;
-          writeBuffer[10] = debug_counter;
+          writeBuffer[0] = 5;
+          writeBuffer[1] = 2;
+          *((unsigned short *)(&writeBuffer[2])) = battery;
           putUSBUSART(writeBuffer, writeBuffer[1]+2);
         }
       }
@@ -492,5 +513,10 @@ void APP_DeviceCDCBasicDemoTasks()
 
       PORTCbits.RC1 = (led_x_timer > 0 ? 1 : 0);
       PORTCbits.RC4 = (led_y_timer > 0 ? 1 : 0);
+    }
+
+    if (ADCON0bits.GO_DONE==0) {
+      battery = ADRES & 0x03ff;
+      ADCON0bits.GO_DONE = 1;
     }
 }
