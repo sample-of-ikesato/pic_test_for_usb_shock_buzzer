@@ -181,16 +181,21 @@ void interrupt_func(void)
     //   = 1.5 * 10**3 / 256
     //   = 11.719, 約12
   }
+
+  if (INTCONbits.INT0IF) {
+    // wake up from sleep mode
+    INTCONbits.INT0IF = 0;
+  }
 }
 
 void init(void)
 {
-  // Input Pin: RA3,RB4,RB5,RB6,RB7,RC3,RC5
+  // Input Pin: RC0,RA3,RB4,RB5,RB6,RB7,RC3,RC5
   // PWM: RC2
   // Pullup: RB4,RB5,RB6,RB7
   TRISA = 0b00001000;
   TRISB = 0b11110000;
-  TRISC = 0b00101000;
+  TRISC = 0b00101001;
   INTCON2bits.RABPU = 0; // enable pull-up
   WPUB  = 0b11110000;
   PORTA = 0;
@@ -301,6 +306,33 @@ void init(void)
   accel_init(&accel_y);
 }
 
+void go2sleep(void)
+{
+  INTCONbits.TMR0IE = 0;
+  INTCONbits.GIEL = 0;
+  INTCONbits.RABIE = 0;
+  SSPIE = 0;
+  BCLIE = 0;
+  PEIE  = 0;
+  //INTCONbits.GIEH = 1;
+
+  PORTA = PORTB = PORTC = 0;
+
+  INTCONbits.INT0IE = 1;
+  INTCON2bits.INTEDG0 = 1;
+
+  SLEEP();
+  NOP();
+
+  // wake up code
+  INTCONbits.TMR0IE = 1;
+  INTCONbits.GIEL = 1;
+  INTCONbits.RABIE = 1;
+  SSPIE = 1;
+  BCLIE = 1;
+  PEIE  = 1;
+}
+
 /*********************************************************************
 * Function: void APP_DeviceCDCBasicDemoInitialize(void);
 *
@@ -325,6 +357,7 @@ void APP_DeviceCDCBasicDemoInitialize()
     buttonPressed = false;
 }
 
+
 /*********************************************************************
 * Function: void APP_DeviceCDCBasicDemoTasks(void);
 *
@@ -341,7 +374,8 @@ void APP_DeviceCDCBasicDemoInitialize()
 ********************************************************************/
 void APP_DeviceCDCBasicDemoTasks()
 {
-    PORTCbits.RC6 = playing;
+    //PORTCbits.RC6 = playing;
+    PORTCbits.RC6 = 1;
     /* If the user has pressed the button associated with this demo, then we
      * are going to send a "Button Pressed" message to the terminal.
      */
@@ -378,6 +412,8 @@ void APP_DeviceCDCBasicDemoTasks()
         /* If the button is released, we can then allow a new message to be
          * sent the next time the button is pressed.
          */
+        if(buttonPressed)
+          go2sleep();
         buttonPressed = false;
     }
 
