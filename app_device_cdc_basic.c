@@ -428,7 +428,6 @@ void APP_DeviceCDCBasicDemoTasks()
             }
             i2c_stop();
             __delay_ms(10);
-        PORTCbits.RC1 = 1;
           }
           break;
         case 0x11:
