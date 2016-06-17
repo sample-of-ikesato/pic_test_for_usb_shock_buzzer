@@ -72,14 +72,14 @@ while true
       fp.close
 
       # loop
-      count=0
-      start = last = Time.now
-      readed = 0
-      fp = File.open(fname, "rb")
-      sp.write([1,0].pack("C*"))
+      #count=0
+      #start = last = Time.now
+      #readed = 0
+      #fp = File.open(fname, "rb")
+      #sp.write([1,0].pack("C*"))
 
       # break
-      #break
+      break
     else
       data = fp.read(rsize)
       readed += data.size

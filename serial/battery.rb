@@ -77,8 +77,8 @@ while true
     battery = data[0] + (data[1] << 8)
     # 1023.0 は ADC の最大値
     # 2.048 は基準電圧で FVR を使用
-    # 2 は分圧抵抗で 1/2 にしているため元に戻している
-    v = 2 * 2.048 * battery / 1023.0
+    # 5/2 は分圧抵抗で 2/5 にしているため元に戻している
+    v = 5.0/2 * 2.048 * battery / 1023.0
     now = Time.now
     ofp.puts "#{now}, #{battery}, #{sprintf("%.3f", v)}"
     ofp.flush
