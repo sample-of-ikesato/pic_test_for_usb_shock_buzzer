@@ -37,6 +37,10 @@
 
 
 #define _XTAL_FREQ (48000000)
+#define BEEP_PIN PORTCbits.RC4
+#define LED1_PIN PORTCbits.RC6
+#define LED2_PIN PORTCbits.RC7
+#define LED3_PIN PORTCbits.RC2
 
 /** VARIABLES ******************************************************/
 
@@ -96,6 +100,7 @@ unsigned char debug_flag = 0;
 unsigned short debug_counter = 0;
 unsigned char calc_accel = 0;
 unsigned short battery = 0;
+unsigned char beep_timing = 0;
 
 #define T0CNT (65536-375)
 void interrupt_func(void)
@@ -114,18 +119,19 @@ void interrupt_func(void)
     }
 
     if (playing) {
-      if (queue_size(&queue) > 0) {
-        unsigned char raw;
-        queue_dequeue(&queue, &raw, 1);
-        CCPR1L = (raw >> 2) & 0x3F;
-        CCP1CONbits.DC1B = (raw & 0x3);
-        //if (raw) {
-        //  CCPR1L = 0x3F;
-        //  CCP1CONbits.DC1B = 0b11;
-        //} else {
-        //  CCPR1L = 0;
-        //  CCP1CONbits.DC1B = 0;
-        //}
+      beep_timing = !beep_timing;
+      //if (queue_size(&queue) > 0) {
+      //  unsigned char raw;
+      //  queue_dequeue(&queue, &raw, 1);
+      //  CCPR1L = (raw >> 2) & 0x3F;
+      //  CCP1CONbits.DC1B = (raw & 0x3);
+      //}
+      if (beep_timing) {
+        CCPR1L = 0x3F;
+        CCP1CONbits.DC1B = 0b11;
+      } else {
+        CCPR1L = 0;
+        CCP1CONbits.DC1B = 0;
       }
     } else {
       CCPR1L = 0;
@@ -186,16 +192,20 @@ void interrupt_func(void)
     // wake up from sleep mode
     INTCONbits.INT0IF = 0;
   }
+  if (INTCON3bits.INT1IF) {
+    // wake up from sleep mode
+    INTCON3bits.INT1IF = 0;
+  }
 }
 
 void init(void)
 {
-  // Input Pin: RC0,RA3,RB4,RB5,RB6,RB7,RC3,RC5
-  // PWM: RC2
+  // Input Pin: RA3,RB4,RB5,RB6,RB7,RC0,RC1,RC3
+  // PWM: RC4
   // Pullup: RB4,RB5,RB6,RB7
   TRISA = 0b00001000;
   TRISB = 0b11110000;
-  TRISC = 0b00101001;
+  TRISC = 0b00001011;
   INTCON2bits.RABPU = 0; // enable pull-up
   WPUB  = 0b11110000;
   PORTA = 0;
@@ -252,9 +262,9 @@ void init(void)
   CCP1CONbits.DC1B  = 0b11;   // デューティ サイクル値の最下位 2 ビット
   CCP1CONbits.P1M   = 0b00;   // シングル出力
   PSTRCONbits.STRA = 0;
-  PSTRCONbits.STRB = 0;
+  PSTRCONbits.STRB = 1;
   PSTRCONbits.STRC = 0;
-  PSTRCONbits.STRD = 1;
+  PSTRCONbits.STRD = 0;
   PSTRCONbits.STRSYNC = 1;
 
 
@@ -320,6 +330,8 @@ void go2sleep(void)
 
   INTCONbits.INT0IE = 1;
   INTCON2bits.INTEDG0 = 1;
+  INTCON3bits.INT1IE = 1;
+  INTCON2bits.INTEDG1 = 1;
 
   SLEEP();
   NOP();
@@ -374,8 +386,8 @@ void APP_DeviceCDCBasicDemoInitialize()
 ********************************************************************/
 void APP_DeviceCDCBasicDemoTasks()
 {
-    //PORTCbits.RC6 = playing;
-    PORTCbits.RC6 = 1;
+    LED1_PIN = playing;
+  //LED1_PIN = 1;
     /* If the user has pressed the button associated with this demo, then we
      * are going to send a "Button Pressed" message to the terminal.
      */
@@ -394,14 +406,15 @@ void APP_DeviceCDCBasicDemoTasks()
             }
             buttonPressed = true;
 
+            playing = !playing;
             if (playing) {
                // initialize NJU72501
                // 一応入れてみる
                // なので 1msec 使ってしっかりと復帰させる
                CCP1CONbits.CCP1M = 0b0000; // PWM off
-               PORTCbits.RC2 = 0;
+               BEEP_PIN = 0;
                __delay_ms(1);
-               PORTCbits.RC2 = 1;
+               BEEP_PIN = 1;
                __delay_ms(1);
                CCP1CONbits.CCP1M = 0b1100; // PWM on
             }
@@ -412,8 +425,9 @@ void APP_DeviceCDCBasicDemoTasks()
         /* If the button is released, we can then allow a new message to be
          * sent the next time the button is pressed.
          */
-        if(buttonPressed)
-          go2sleep();
+        if(buttonPressed) {
+        //  go2sleep();
+        }
         buttonPressed = false;
     }
 
@@ -434,9 +448,9 @@ void APP_DeviceCDCBasicDemoTasks()
             // いきなりPWMだとshutdownモードから復帰できない模様
             // なので 1msec 使ってしっかりと復帰させる
             CCP1CONbits.CCP1M = 0b0000; // PWM off
-            PORTCbits.RC2 = 0;
+            BEEP_PIN = 0;
             __delay_ms(10);
-            PORTCbits.RC2 = 1;
+            BEEP_PIN = 1;
             __delay_ms(10);
             CCP1CONbits.CCP1M = 0b1100; // PWM on
           }
@@ -525,13 +539,15 @@ void APP_DeviceCDCBasicDemoTasks()
         //  writeBuffer[10] = debug_counter;
         //  putUSBUSART(writeBuffer, writeBuffer[1]+2);
         //}
-        if (debug_flag) {
-          debug_flag = 0;
-          writeBuffer[0] = 5;
-          writeBuffer[1] = 2;
-          *((unsigned short *)(&writeBuffer[2])) = battery;
-          putUSBUSART(writeBuffer, writeBuffer[1]+2);
-        }
+
+        // notify battery voltage
+        //if (debug_flag) {
+        //  debug_flag = 0;
+        //  writeBuffer[0] = 5;
+        //  writeBuffer[1] = 2;
+        //  *((unsigned short *)(&writeBuffer[2])) = battery;
+        //  putUSBUSART(writeBuffer, writeBuffer[1]+2);
+        //}
       }
     }
 
@@ -547,8 +563,8 @@ void APP_DeviceCDCBasicDemoTasks()
       if (accel_y.value < (unsigned short)(4585*(1.0-THRESHOLD)) || accel_y.value > (unsigned short)(4585*(1.0+THRESHOLD)))
         led_y_timer = (unsigned short)(0.5*8000); // 0.5[s]
 
-      PORTCbits.RC1 = (led_x_timer > 0 ? 1 : 0);
-      PORTCbits.RC4 = (led_y_timer > 0 ? 1 : 0);
+      LED3_PIN = (led_x_timer > 0 ? 1 : 0);
+      LED2_PIN = (led_y_timer > 0 ? 1 : 0);
     }
 
     if (ADCON0bits.GO_DONE==0) {
