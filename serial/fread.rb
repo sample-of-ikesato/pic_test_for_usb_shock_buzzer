@@ -80,7 +80,6 @@ while true
     fp.write(data.pack("C*"))
     rsize -= data.size
     addr += data.size
-p ["aaaaaaaaaaaaaaaaaaaaaaa", rsize]
     break if rsize <= 0
     header = [0x11, [rsize, 0x20].min].pack("C*") + [addr].pack("S")
 File.open("debug.dat","ab"){|f| f.write(header)}

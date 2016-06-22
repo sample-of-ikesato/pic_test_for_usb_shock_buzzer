@@ -541,13 +541,13 @@ void APP_DeviceCDCBasicDemoTasks()
         //}
 
         // notify battery voltage
-        //if (debug_flag) {
-        //  debug_flag = 0;
-        //  writeBuffer[0] = 5;
-        //  writeBuffer[1] = 2;
-        //  *((unsigned short *)(&writeBuffer[2])) = battery;
-        //  putUSBUSART(writeBuffer, writeBuffer[1]+2);
-        //}
+        if (debug_flag) {
+          debug_flag = 0;
+          writeBuffer[0] = 5;
+          writeBuffer[1] = 2;
+          *((unsigned short *)(&writeBuffer[2])) = battery;
+          putUSBUSART(writeBuffer, writeBuffer[1]+2);
+        }
       }
     }
 
